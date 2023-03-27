@@ -11,6 +11,9 @@ class ViewController: UIViewController {
     
     // MARK: Properties
     private let cellID = "Cell"
+    var alert: UIAlertController?
+    
+    private var contacts: [String] = []
     
     lazy private var tableView: UITableView = {
         let tableView = UITableView(frame: view.bounds, style: .plain)
@@ -61,7 +64,36 @@ extension ViewController {
     }
     
     @objc private func addContact() {
-        
+        alert = UIAlertController(title: "Add Contact", message: "Enter contact name", preferredStyle: .alert)
+        alert?.addTextField() { textField in
+            textField.placeholder = "First name"
+            textField.addTarget(self, action: #selector(self.checkTextField), for: .editingChanged)
+        }
+        alert?.addTextField() { textField in
+            textField.placeholder = "Last name"
+            textField.addTarget(self, action: #selector(self.checkTextField), for: .editingChanged)
+        }
+        let save = UIAlertAction(title: "Save", style: .default) { [unowned self] _ in
+            guard let text = self.alert?.textFields?.first?.text, !text.isEmpty else { return }
+            self.contacts.append(text)
+            self.tableView.reloadData()
+        }
+        save.isEnabled = false
+        let cancel = UIAlertAction(title: "Cancel", style: .cancel)
+        alert?.addAction(save)
+        alert?.addAction(cancel)
+        guard let alert = alert else { return }
+        present(alert, animated: true)
+    }
+    
+    @objc func checkTextField() {
+        guard let firstText = alert?.textFields?.first?.text, let secondText = alert?.textFields?.last?.text else { return }
+        guard let action = alert?.actions.first else { return }
+        if !firstText.isEmpty && !secondText.isEmpty {
+            action.isEnabled = true
+        } else {
+            action.isEnabled = false
+        }
     }
     
 }
@@ -69,7 +101,7 @@ extension ViewController {
 // MARK: TableView DataSource
 extension ViewController: UITableViewDataSource {
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        3
+        contacts.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -77,7 +109,7 @@ extension ViewController: UITableViewDataSource {
         
         var content = cell.defaultContentConfiguration()
         content.image = UIImage(systemName: "person.circle")
-        content.text = "Full Name"
+        content.text = contacts[indexPath.row]
         content.imageProperties.tintColor = .systemCyan
         cell.contentConfiguration = content
 
