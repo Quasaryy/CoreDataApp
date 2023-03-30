@@ -6,6 +6,7 @@
 //
 
 import UIKit
+import CoreData
 
 class ViewController: UIViewController {
     
@@ -13,7 +14,7 @@ class ViewController: UIViewController {
     private let cellID = "Cell"
     var alert: UIAlertController?
     
-    private var contacts: [String] = []
+    private var contacts: [NSManagedObject] = []
     
     lazy private var tableView: UITableView = {
         let tableView = UITableView(frame: view.bounds, style: .plain)
@@ -26,6 +27,8 @@ class ViewController: UIViewController {
     // MARK: Override Methods
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        coreDataFetchRequest()
                 
         addSubViews()
         addConstaraints()
@@ -74,8 +77,9 @@ extension ViewController {
             textField.addTarget(self, action: #selector(self.checkTextField), for: .editingChanged)
         }
         let save = UIAlertAction(title: "Save", style: .default) { [unowned self] _ in
-            guard let text = self.alert?.textFields?.first?.text, !text.isEmpty else { return }
-            self.contacts.append(text)
+            guard let firstNameText = self.alert?.textFields?.first?.text, !firstNameText.isEmpty else { return }
+            guard let lastNameText = self.alert?.textFields?.last?.text, !lastNameText.isEmpty else { return }
+            self.saveCoreDataObject(firstName: firstNameText, lastName: lastNameText)
             self.tableView.reloadData()
         }
         save.isEnabled = false
@@ -86,13 +90,41 @@ extension ViewController {
         present(alert, animated: true)
     }
     
-    @objc func checkTextField() {
+    @objc private func checkTextField() {
         guard let firstText = alert?.textFields?.first?.text, let secondText = alert?.textFields?.last?.text else { return }
         guard let action = alert?.actions.first else { return }
         if !firstText.isEmpty && !secondText.isEmpty {
             action.isEnabled = true
         } else {
             action.isEnabled = false
+        }
+    }
+    
+    private func saveCoreDataObject(firstName: String, lastName: String) {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistantContainer.viewContext
+        guard let entity = NSEntityDescription.entity(forEntityName: "Contact", in: context) else { return }
+        let contact = NSManagedObject(entity: entity, insertInto: context)
+        contact.setValue(firstName, forKey: "firstName")
+        contact.setValue(lastName, forKey: "lastName")
+        
+        do {
+            try context.save()
+            contacts.append(contact)
+        } catch let error as NSError {
+            print("Cant write \(error), \(error.userInfo)")
+        }
+    }
+    
+    private func coreDataFetchRequest() {
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistantContainer.viewContext
+        let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: "Contact")
+        
+        do {
+            try contacts = context.fetch(fetchRequest)
+        } catch let error as NSError {
+            print("Cant read \(error), \(error.userInfo)")
         }
     }
     
@@ -109,7 +141,9 @@ extension ViewController: UITableViewDataSource {
         
         var content = cell.defaultContentConfiguration()
         content.image = UIImage(systemName: "person.circle")
-        content.text = contacts[indexPath.row]
+        let fistName = contacts[indexPath.row].value(forKey: "firstName") as? String ?? ""
+        let lastname = contacts[indexPath.row].value(forKey: "lastName") as? String ?? ""
+        content.text = "\(fistName) \(lastname)"
         content.imageProperties.tintColor = .systemCyan
         cell.contentConfiguration = content
 
